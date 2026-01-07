@@ -514,6 +514,12 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             }
         }
 
+        // Add CPU & Memory
+        let cpuCount = Int64(service.deploy?.resources?.limits?.cpus ?? "4") ?? 4
+        let memoryLimit = service.deploy?.resources?.limits?.memory ?? "1024MB"
+        runCommandArgs.append(contentsOf: ["--cpus", "\(cpuCount)"])
+        runCommandArgs.append(contentsOf: ["--memory", memoryLimit])
+
         // Add interactive and TTY flags
         if service.stdin_open == true {
             runCommandArgs.append("-i")  // --interactive
