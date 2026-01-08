@@ -45,9 +45,10 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         help: "Detatches from container logs. Note: If you do NOT detatch, killing this process will NOT kill the container. To kill the container, run container-compose down")
     var detatch: Bool = false
 
-    @Option(name: [.customShort("f"), .customLong("file")], help: "The path to your Docker Compose file")
-    var composeFilename: String = "compose.yml"
-    private var composePath: String { "\(cwd)/\(composeFilename)" }  // Path to compose.yml
+    @Option(name: [.customShort("f"), .customLong("file")], help: "The path to your Docker Compose file (default: compose.yml)")
+    var composeFilename: String?
+    private var resolvedComposeFilename: String = "compose.yml"
+    private var composePath: String { "\(cwd)/\(resolvedComposeFilename)" }  // Path to compose.yml
 
     @Flag(name: [.customShort("b"), .customLong("build")])
     var rebuild: Bool = false
@@ -75,17 +76,22 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     ]
 
     public mutating func run() async throws {
-        // Check for supported filenames and extensions
-        let filenames = [
-            "compose.yml",
-            "compose.yaml",
-            "docker-compose.yml",
-            "docker-compose.yaml",
-        ]
-        for filename in filenames {
-            if fileManager.fileExists(atPath: "\(cwd)/\(filename)") {
-                composeFilename = filename
-                break
+        // Use user-specified file if provided, otherwise auto-detect
+        if let userSpecifiedFile = composeFilename {
+            resolvedComposeFilename = userSpecifiedFile
+        } else {
+            // Check for supported filenames and extensions
+            let filenames = [
+                "compose.yml",
+                "compose.yaml",
+                "docker-compose.yml",
+                "docker-compose.yaml",
+            ]
+            for filename in filenames {
+                if fileManager.fileExists(atPath: "\(cwd)/\(filename)") {
+                    resolvedComposeFilename = filename
+                    break
+                }
             }
         }
 
@@ -455,7 +461,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
                 runCommandArgs.append(networkToConnect)
             }
             print(
-                "Info: Service '\(serviceName)' is configured to connect to networks: \(serviceNetworks.joined(separator: ", ")) ascertained from networks attribute in \(composeFilename)."
+                "Info: Service '\(serviceName)' is configured to connect to networks: \(serviceNetworks.joined(separator: ", ")) ascertained from networks attribute in \(resolvedComposeFilename)."
             )
             print(
                 "Note: This tool assumes custom networks are defined at the top-level 'networks' key or are pre-existing. This tool does not create implicit networks for services if not explicitly defined at the top-level."
@@ -574,7 +580,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             return
         }
 
-        print("Pulling Image \(imageName)...")
+        print("Pulling Image \(imageName) (Platform: \(platform ?? "default"))...")
         
         var commands = [
             imageName
