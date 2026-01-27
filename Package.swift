@@ -36,7 +36,7 @@ let package = Package(
         
         // Executable target
         .executableTarget(
-            name: "Container-Compose",
+            name: "container-compose",
             dependencies: [
                 "ContainerComposeCore"
             ],
