@@ -366,12 +366,22 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         }
 
         // Handle 'deploy' configuration (note that this tool doesn't fully support it)
-        if service.deploy != nil {
+        if let deploy = service.deploy {
             print("Note: The 'deploy' configuration for service '\(serviceName)' was parsed successfully.")
-            print(
-                "However, this 'container-compose' tool does not currently support 'deploy' functionality (e.g., replicas, resources, update strategies) as it is primarily for orchestration platforms like Docker Swarm or Kubernetes, not direct 'container run' commands."
-            )
-            print("The service will be run as a single container based on other configurations.")
+            
+            // Add CPU & Memory from deploy.resources.limits
+            if let cpuLimit = deploy.resources?.limits?.cpus {
+                runCommandArgs.append(contentsOf: ["--cpus", "\(cpuLimit)"])
+            }
+
+            if let memoryLimit = deploy.resources?.limits?.memory {
+                runCommandArgs.append(contentsOf: ["--memory", "\(memoryLimit)"])
+            }
+
+            // Log unsupported deploy features
+            if deploy.mode != nil || deploy.replicas != nil || deploy.restart_policy != nil {
+                print("Note: The 'deploy' configuration for service '\(serviceName)' includes features (mode, replicas, restart_policy) that are not supported by this tool.")
+            }
         }
 
         // Add detach flag if specified on the CLI
@@ -527,12 +537,6 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             }
         }
 
-        // Add CPU & Memory
-        let cpuCount = Int64(service.deploy?.resources?.limits?.cpus ?? "4") ?? 4
-        let memoryLimit = service.deploy?.resources?.limits?.memory ?? "1024MB"
-        runCommandArgs.append(contentsOf: ["--cpus", "\(cpuCount)"])
-        runCommandArgs.append(contentsOf: ["--memory", memoryLimit])
-
         // Add interactive and TTY flags
         if service.stdin_open == true {
             runCommandArgs.append("-i")  // --interactive
@@ -655,12 +659,14 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         
         // Add image name
         commands.append(contentsOf: ["--tag", imageToRun])
-        
-        // Add CPU & Memory
-        let cpuCount = Int64(service.deploy?.resources?.limits?.cpus ?? "2") ?? 2
-        let memoryLimit = service.deploy?.resources?.limits?.memory ?? "2048MB"
-        commands.append(contentsOf: ["--cpus", "\(cpuCount)"])
-        commands.append(contentsOf: ["--memory", memoryLimit])
+
+        // Add CPU & Memory from deploy.resources.limits (only if configured)
+        if let cpuLimit = service.deploy?.resources?.limits?.cpus {
+            commands.append(contentsOf: ["--cpus", "\(cpuLimit)"])
+        }
+        if let memoryLimit = service.deploy?.resources?.limits?.memory {
+            commands.append(contentsOf: ["--memory", "\(memoryLimit)"])
+        }
 
         let buildCommand = try Application.BuildCommand.parse(commands)
         print("\n----------------------------------------")
