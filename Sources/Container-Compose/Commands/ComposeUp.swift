@@ -23,7 +23,7 @@
 
 import ArgumentParser
 import ContainerCommands
-import ContainerClient
+import ContainerAPIClient
 import ContainerizationExtras
 import Foundation
 @preconcurrency import Rainbow
@@ -60,7 +60,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     var process: Flags.Process
 
     @OptionGroup
-    var global: Flags.Global
+    var logging: Flags.Logging
 
     private var cwd: String { process.cwd ?? FileManager.default.currentDirectoryPath }
     var envFilePath: String { "\(cwd)/\(process.envFile.first ?? ".env")" }  // Path to optional .env file
@@ -192,7 +192,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         let containerName = "\(projectName)-\(serviceName)"
 
         let container = try await ClientContainer.get(id: containerName)
-        let ip = container.networks.compactMap { try? CIDRAddress($0.address).address.description }.first
+        let ip = container.networks.first?.ipv4Address.address.description
 
         return ip
     }
@@ -325,7 +325,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             }
             let commands = [actualNetworkName]
             
-            var networkCreate = try Application.NetworkCreate.parse(commands + global.passThroughCommands())
+            var networkCreate = try Application.NetworkCreate.parse(commands + logging.passThroughCommands())
 
             try await networkCreate.run()
             print("Network '\(networkName)' created")
@@ -590,7 +590,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             commands.append(contentsOf: ["--platform", platform])
         }
 
-        let imagePull = try Application.ImagePull.parse(commands + global.passThroughCommands())
+        let imagePull = try Application.ImagePull.parse(commands + logging.passThroughCommands())
         try await imagePull.run()
     }
 
@@ -680,15 +680,11 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             let normalizedHostPath = URL(fileURLWithPath: fullHostPath).standardizedFileURL.path(percentEncoded: false)
 
             if fileManager.fileExists(atPath: normalizedHostPath, isDirectory: &isDirectory) {
-                if isDirectory.boolValue {
-                    // Host path exists and is a directory, add the volume
-                    runCommandArgs.append("-v")
-                    // Use normalized absolute path for container command (container tool requires absolute paths)
-                    runCommandArgs.append("\(normalizedHostPath):\(destination)")
-                } else {
-                    // Host path exists but is a file
-                    print("Warning: Volume mount source '\(source)' is a file. The 'container' tool does not support direct file mounts. Skipping this volume.")
-                }
+                // Host path exists (file or directory), add the volume
+                // Note: containerization 0.21+ supports single file mounts via virtiofs
+                runCommandArgs.append("-v")
+                // Use normalized absolute path for container command (container tool requires absolute paths)
+                runCommandArgs.append("\(normalizedHostPath):\(destination)")
             } else {
                 // Host path does not exist, assume it's meant to be a directory and try to create it.
                 do {
