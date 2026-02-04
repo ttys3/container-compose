@@ -16,7 +16,7 @@
       "location" : "https://github.com/ttys3/container.git",
       "state" : {
         "branch" : "OptionGroupPassthrough",
-        "revision" : "984bed3040ffbbdf0d809ca57fc2f49aa317343a"
+        "revision" : "23a6c11dc7946ab3be93e198eabfa95fabefcf5e"
       }
     },
     {
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/containerization.git",
       "state" : {
-        "revision" : "fd62f311b480d1fb5ef243a65927da54b4eecfae",
-        "version" : "0.23.1"
+        "revision" : "c3fe889a2f739ee4a9b0faccedd9f36f3862dc29",
+        "version" : "0.24.5"
       }
     },
     {
@@ -260,6 +260,15 @@
       "state" : {
         "revision" : "51b5127c7fb6ffac106ad6d199aaa33c5024895f",
         "version" : "6.2.0"
+      }
+    },
+    {
+      "identity" : "zstd",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/facebook/zstd.git",
+      "state" : {
+        "revision" : "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "version" : "1.5.7"
       }
     }
   ],
