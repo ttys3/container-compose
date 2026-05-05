@@ -24,7 +24,6 @@
 import ArgumentParser
 import ContainerCommands
 import ContainerAPIClient
-import ContainerizationExtras
 import Foundation
 @preconcurrency import Rainbow
 import Yams
@@ -187,8 +186,9 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     }
 
     private func getIPForContainer(_ containerName: String) async throws -> String? {
-        let container = try await ClientContainer.get(id: containerName)
-        let ip = container.networks.first?.ipv4Address.address.description
+        let client = ContainerClient()
+        let snapshot = try await client.get(id: containerName)
+        let ip = snapshot.networks.first?.ipv4Address.address.description
 
         return ip
     }
@@ -201,12 +201,13 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
     private func waitUntilContainerIsRunning(_ containerName: String, timeout: TimeInterval = 30, interval: TimeInterval = 0.5) async throws {
         let deadline = Date().addingTimeInterval(timeout)
         var lastStatusDescription: String?
+        let client = ContainerClient()
 
         while Date() < deadline {
             do {
-                let container = try await ClientContainer.get(id: containerName)
-                lastStatusDescription = "\(container.status)"
-                if container.status == .running {
+                let snapshot = try await client.get(id: containerName)
+                lastStatusDescription = "\(snapshot.status)"
+                if snapshot.status == .running {
                     print("Container '\(containerName)' is now running.")
                     return
                 }
@@ -227,6 +228,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
     private func stopOldStuff(_ services: [(serviceName: String, service: Service)], remove: Bool) async throws {
         guard let projectName else { return }
+        let client = ContainerClient()
 
         for (serviceName, service) in services {
             // Respect explicit container_name, otherwise use default pattern
@@ -238,16 +240,16 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             }
 
             print("Stopping container: \(containerName)")
-            guard let container = try? await ClientContainer.get(id: containerName) else { continue }
+            guard (try? await client.get(id: containerName)) != nil else { continue }
 
             do {
-                try await container.stop()
+                try await client.stop(id: containerName, opts: .default)
             } catch {
                 print("Error Stopping Container: \(error)")
             }
             if remove {
                 do {
-                    try await container.delete()
+                    try await client.delete(id: containerName, force: false)
                 } catch {
                     print("Error Removing Container: \(error)")
                 }
@@ -326,7 +328,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
 
             print("Creating network: \(networkName) (Actual name: \(actualNetworkName))")
             print("Executing container network create: container \(networkCreateArgs.joined(separator: " "))")
-            guard (try? await ClientNetwork.get(id: actualNetworkName)) == nil else {
+            let networkClient = NetworkClient()
+            guard (try? await networkClient.get(id: actualNetworkName)) == nil else {
                 print("Network '\(networkName)' already exists")
                 return
             }
@@ -566,7 +569,8 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
         self.containerConsoleColors[serviceName] = serviceColor
 
         // Check if container already exists
-        if let existingContainer = try? await ClientContainer.get(id: containerName) {
+        let client = ContainerClient()
+        if let existingContainer = try? await client.get(id: containerName) {
             if existingContainer.status == .running {
                 print("Container '\(containerName)' is already running.")
                 try await updateEnvironmentWithServiceIP(serviceName, containerName: containerName)
@@ -668,7 +672,7 @@ public struct ComposeUp: AsyncParsableCommand, @unchecked Sendable {
             commands.append(contentsOf: ["--memory", "\(memoryLimit)"])
         }
 
-        let buildCommand = try Application.BuildCommand.parse(commands)
+        var buildCommand = try Application.BuildCommand.parse(commands)
         print("\n----------------------------------------")
         print("Building image for service: \(serviceName) (Tag: \(imageToRun))")
         print("Running: container build \(commands.joined(separator: " "))")

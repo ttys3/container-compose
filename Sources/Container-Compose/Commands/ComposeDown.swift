@@ -108,6 +108,7 @@ public struct ComposeDown: AsyncParsableCommand {
 
     private func stopOldStuff(_ services: [(serviceName: String, service: Service)], remove: Bool) async throws {
         guard let projectName else { return }
+        let client = ContainerClient()
 
         for (serviceName, service) in services {
             // Respect explicit container_name, otherwise use default pattern
@@ -119,20 +120,20 @@ public struct ComposeDown: AsyncParsableCommand {
             }
 
             print("Stopping container: \(containerName)")
-            guard let container = try? await ClientContainer.get(id: containerName) else {
+            guard (try? await client.get(id: containerName)) != nil else {
                 print("Warning: Container '\(containerName)' not found, skipping.")
                 continue
             }
 
             do {
-                try await container.stop()
+                try await client.stop(id: containerName, opts: .default)
                 print("Successfully stopped container: \(containerName)")
             } catch {
                 print("Error Stopping Container: \(error)")
             }
             if remove {
                 do {
-                    try await container.delete()
+                    try await client.delete(id: containerName, force: false)
                     print("Successfully removed container: \(containerName)")
                 } catch {
                     print("Error Removing Container: \(error)")

@@ -37,7 +37,7 @@ struct ComposeUpTests {
         try await composeUp.run()
         
         // Get these containers
-        let containers = try await ClientContainer.list()
+        let containers = try await ContainerClient().list()
             .filter({
                 $0.configuration.id.contains(tempLocation.deletingLastPathComponent().lastPathComponent)
             })
@@ -96,11 +96,11 @@ struct ComposeUpTests {
 //        try await composeUp.run()
 //        
 //        // Get the containers created by this compose file
-//        let containers = try await ClientContainer.list()
+//        let containers = try await ContainerClient().list()
 //            .filter({
 //                $0.configuration.id.contains(folderName)
 //            })
-//        
+//
 //        guard let nginxContainer = containers.first(where: { $0.configuration.id == "\(folderName)-nginx" }),
 //              let appContainer = containers.first(where: { $0.configuration.id == "\(folderName)-app" }),
 //              let dbContainer = containers.first(where: { $0.configuration.id == "\(folderName)-db" }),
@@ -173,9 +173,9 @@ struct ComposeUpTests {
 //        
 //        var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
 //        try await composeUp.run()
-//        
+//
 //        // Get the containers created by this compose file
-//        let containers = try await ClientContainer.list()
+//        let containers = try await ContainerClient().list()
 //            .filter({
 //                $0.configuration.id.contains(folderName)
 //            })
@@ -193,9 +193,9 @@ struct ComposeUpTests {
         
         var composeUp = try ComposeUp.parse(["-d", "--cwd", tempLocation.deletingLastPathComponent().path(percentEncoded: false)])
         try await composeUp.run()
-        
+
         // Get the containers created by this compose file
-        let containers = try await ClientContainer.list()
+        let containers = try await ContainerClient().list()
             .filter {
                 $0.configuration.id.contains(folderName)
             }
